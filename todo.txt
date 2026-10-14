@@ -1,1 +1,23 @@
-- add check if line has both bracets []
+- add normal parsing pydantic error 
+
+parser                     ✅
+      ↓
+Network                    ✅
+      ↓
+graph                      ✅
+      ↓
+find_path()                ← СЕЙЧАС
+      ↓
+weighted pathfinding
+      ↓
+multiple paths
+      ↓
+Drone / simulation
+      ↓
+capacity + conflicts
+      ↓
+optimization
+      ↓
+visualization
+      ↓
+final output
