@@ -3,6 +3,7 @@ from errors import ConfigurationException
 from config.models import Conection
 from graph_builder import build_graph
 from find_path import find_path
+from simulation import Simulation
 import sys
 
 def print_graph(graph: dict[str, list[Conection]]) -> None:
@@ -28,8 +29,9 @@ if __name__ == "__main__":
 		# network = read_config_file(sys.argv[1])
 		network = read_config_file("config.txt")
 		graph = build_graph(network)
-		print_graph(graph)
 		path = find_path(network, graph)
-		print(path)
+		simulation = Simulation(network, graph)
+		for _ in range(20):
+			simulation.run_turn()
 	except ConfigurationException as e:
 		print(e)

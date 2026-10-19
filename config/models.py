@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, model_validator
 from enum import StrEnum
+from math import inf
 
 class ConfigKey(StrEnum):
 	NB_DRONES = "nb_drones"
@@ -19,6 +20,26 @@ class ZoneEnum(StrEnum):
 	BLOCKED = "blocked"
 	RESTRICTED = "restricted"
 	PRIORITY = "priority"
+
+	def get_distance(self) -> float:
+		match self:
+			case ZoneEnum.NORMAL:
+				return 1
+			case ZoneEnum.PRIORITY:
+				return 0.99
+			case ZoneEnum.BLOCKED:
+				return inf
+			case ZoneEnum.RESTRICTED:
+				return 2
+
+class Color(StrEnum):
+	RED = '\033[31m'
+	GREEN = '\033[32m'
+	YELLOW = '\033[33m'
+	BLUE = '\033[34m'
+	PURPLE = '\033[35m'
+	LIGTH_BLUE = '\033[36m'
+	RESET = '\033[0m'
 
 class Network(BaseModel):
 	nb_drones: int = Field(..., gt=0)
@@ -41,10 +62,27 @@ class Hub(BaseModel):
 			raise ValueError("The connection syntax forbids dashes in zone names.")
 		return self
 
+	def __str__(self):
+		match self.color:
+			case 'red':
+				color = Color.RED
+			case 'green':
+				color = Color.GREEN
+			case 'yellow':
+				color = Color.YELLOW
+			case 'blue':
+				color = Color.BLUE
+			case 'ligthblue':
+				color = Color.LIGTH_BLUE
+			case _:
+				color = Color.RESET
+		return f"{color}{self.name}{Color.RESET}"
+
 class Conection(BaseModel):
 	name1: str = Field(..., min_length=1)
 	name2: str = Field(..., min_length=1)
 	max_link_capacity: int = 1
+	passed_in_turn: int = 0
 
 	@model_validator(mode="after")
 	def conection_check(self) -> "Conection":

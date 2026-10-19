@@ -5,3 +5,11 @@ class ConfigurationException(Exception):
 
 	def __str__(self) -> str:
 		return f"{self.message}"
+
+class SimulationException(Exception):
+	def __init__(self, message: str = "Unknown simulation error.") -> None:
+		self.message = message
+		super().__init__(self.message)
+
+	def __str__(self) -> str:
+		return f"{self.message}"

@@ -3,7 +3,7 @@ from math import inf
 import heapq
 from errors import ConfigurationException
 
-def find_path(network: Network, graph: dict[str, list[Conection]]):
+def find_path(network: Network, graph: dict[str, list[Conection]]) -> list[list[str]]:
 	start = network.start_hub
 
 	distances = {hub_name: inf for hub_name in graph}
@@ -24,7 +24,12 @@ def find_path(network: Network, graph: dict[str, list[Conection]]):
 		conections = graph[hub_name]
 		for conection in conections:
 			neighbor = conection.name2
-			new_distance = distance + 1
+			if neighbor == network.end_hub.name: 
+				new_distance = distance + network.end_hub.zone.get_distance()
+			else:
+				new_distance = distance + network.hubs[neighbor].zone.get_distance()
+			if new_distance == inf:
+				continue
 			if distances[neighbor] > new_distance:
 				heapq.heappush(queue, (new_distance, neighbor))
 				distances[neighbor] = new_distance

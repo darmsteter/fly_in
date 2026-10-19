@@ -14,7 +14,7 @@ def parse_nb_drones(line: str) -> str:
 			"Invalid nb_drones declaration: expected 'nb_drones: <positive_integer>'."
 		)
 
-def parse_hub(hub: str):
+def parse_hub(hub: str, is_end_or_start: bool = False):
 	try:
 		seen_metadata = set()
 		color = None
@@ -44,16 +44,24 @@ def parse_hub(hub: str):
 					seen_metadata.add(MetadataKey.COLOR)
 					color = value
 				elif key == MetadataKey.ZONE:
+					if is_end_or_start:
+						raise ConfigurationException(
+							f"End or start hub can't have zone type."
+						)
 					seen_metadata.add(MetadataKey.ZONE)
 					zone = value
 				elif key == MetadataKey.MAX_DRONES:
+					if is_end_or_start:
+						raise ConfigurationException(
+							f"End or start hub can't have max drone metadata."
+						)
 					seen_metadata.add(MetadataKey.MAX_DRONES)
 					max_drones = value
 				else:
 					raise ConfigurationException(
 						f"Unknown hub metadata: {key}."
 					)
-		return name_and_coordinates[0].strip(), Hub(name=name_and_coordinates[0].strip(),
+		return Hub(name=name_and_coordinates[0].strip(),
 			x=name_and_coordinates[1],
 			y=name_and_coordinates[2],
 			zone=zone,
@@ -120,20 +128,20 @@ def read_config_file(file_name: str) -> None:
 							raise ConfigurationException(
 								f"Duplicate configuration key: {ConfigKey.START_HUB}."
 							)
-						_, start_hub = parse_hub(line.split(": ", 1)[1].strip())
+						start_hub = parse_hub(line.split(": ", 1)[1].strip(), True)
 					elif line.startswith(f"{ConfigKey.END_HUB}:"):
 						if end_hub is not None:
 							raise ConfigurationException(
 								f"Duplicate configuration key: {ConfigKey.END_HUB}"
 							)
-						_, end_hub = parse_hub(line.split(": ", 1)[1].strip())
+						end_hub = parse_hub(line.split(": ", 1)[1].strip(), True)
 					elif line.startswith(f"{ConfigKey.HUB}:"):
-						name, hub = parse_hub(line.split(": ", 1)[1].strip())
-						if name in hubs:
+						hub = parse_hub(line.split(": ", 1)[1].strip())
+						if hub.name in hubs:
 							raise ConfigurationException(
 								"Duplicate hub name."
 							)
-						hubs[name] = hub
+						hubs[hub.name] = hub
 					elif line.startswith(f"{ConfigKey.CONNTCTION}: "):
 						connections.append(parse_connection(line.split(": ", 1)[1].strip()))
 				is_first_line = False
