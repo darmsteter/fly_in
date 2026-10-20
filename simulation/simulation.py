@@ -1,7 +1,6 @@
 from .models import Drone
 from config.models import Network, Conection, Hub, ZoneEnum
 from find_path import find_path
-from errors import ConfigurationException
 import copy
 
 class Simulation:
@@ -10,8 +9,7 @@ class Simulation:
 		self.graph = graph
 		self.drones: list[Drone] = self._init_drones()
 		self.turn = 0
-		self.positions: dict[int, str] = self._inii_positions()
-		
+		self.turns_history: dict[int, dict[int, str]] = {}
 
 	def _init_drones(self) -> list[Drone]:
 		drones: list[Drone] = []
@@ -23,8 +21,12 @@ class Simulation:
 	def _inii_positions(self) -> dict[int, str]:
 		positions: dict[int, str] = {}
 		start = self.network.start_hub.name
+		end = self.network.end_hub.name
 		for drone in self.drones:
-			positions[drone.id] = start
+			if drone.finished:
+				positions[drone.id] = end
+			else:
+				positions[drone.id] = start
 		return positions
 
 	def _get_current_hub(self, drone: Drone) -> Hub:
@@ -50,9 +52,18 @@ class Simulation:
 				return conection
 		return None
 
+	def _get_positions(self, next_hub: Hub) -> dict[int, str]:
+		if next_hub.zone is ZoneEnum.RESTRICTED:
+			return self.turns_history[self.turn + 1]
+		return self.turns_history[self.turn]
+
 	def _can_move(self, drone: Drone, next_hub: Hub) -> bool:
+		if self.turn > 0 and self.turns_history[self.turn - 1][drone.id] == "connection":
+			conection = self._get_connection(drone.path[drone.path_index], drone.path[drone.path_index + 1])
+			conection.passed_in_turn += 1
+			return True
 		max_hub_capacity = next_hub.max_drones
-		drones_in_hub = list(self.positions.values()).count(next_hub.name)
+		drones_in_hub = list(self._get_positions(next_hub).values()).count(next_hub.name)
 		if drones_in_hub >= max_hub_capacity and next_hub is not self.network.end_hub:
 			return False
 		current_hub_name = self._get_current_hub(drone).name
@@ -62,7 +73,10 @@ class Simulation:
 		if conection.passed_in_turn >= conection.max_link_capacity:
 			return False
 		conection.passed_in_turn += 1
-		self.positions[drone.id] = next_hub.name
+		self._get_positions(next_hub)[drone.id] = next_hub.name
+		if next_hub.zone is ZoneEnum.RESTRICTED:
+			self.turns_history[self.turn][drone.id] = "connection"
+			return False
 		return True
 	
 	def _apply_moves(self, planned_moves: list[tuple[Drone, Hub]]):
@@ -81,6 +95,10 @@ class Simulation:
 	def run_turn(self):
 		planned_moves: list[tuple[Drone, Hub]] = []
 		waiting_drones: list[Drone] = []
+		if self.turn not in self.turns_history:
+			self.turns_history[self.turn] = self._inii_positions()
+		if self.turn + 1 not in self.turns_history:
+			self.turns_history[self.turn + 1] = self._inii_positions()
 		for conection in self.network.conections:
 			conection.passed_in_turn = 0
 		for drone in self.drones:
@@ -92,7 +110,8 @@ class Simulation:
 			if self._can_move(drone, next_hub):
 				planned_moves.append((drone, next_hub))
 				continue
-			waiting_drones.append(drone)
+			if not self.turns_history[self.turn][drone.id] == "connection":
+				waiting_drones.append(drone)
 		for drone in waiting_drones:
 			next_hub = self._get_next_hub(drone)
 			if next_hub is None:
@@ -101,5 +120,6 @@ class Simulation:
 				planned_moves.append((drone, next_hub))
 		self._apply_moves(planned_moves)
 		print()
+		# self.turns_history[self.turn] = copy.deepcopy(self.positions)
 		self.turn += 1
 		return self._end_simulation(self.drones)

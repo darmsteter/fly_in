@@ -30,11 +30,14 @@ if __name__ == "__main__":
 		network = read_config_file("config.txt")
 		graph = build_graph(network)
 		paths = find_path(network, graph)
+		print(paths)
 		simulation = Simulation(network, graph)
 		while True:
 			if not simulation.run_turn():
 				continue
 			print(simulation.turn)
+			# simulation.turns_history.popitem()
+			# print(simulation.turns_history)
 			break
 	except ConfigurationException as e:
 		print(e)
