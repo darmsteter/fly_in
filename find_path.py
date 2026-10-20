@@ -81,7 +81,7 @@ def find_path(network: Network, graph: dict[str, list[Conection]]) -> list[list[
 	paths: list[list[str]] = [main_path]
 	candidates: list[tuple[float, tuple[str, ...]]] = []
 	candidate_paths: set[tuple[str, ...]] = set()
-	while len(paths) < 2:
+	while len(paths) < 3:
 		previous_path = paths[len(paths) - 1]
 
 		for i in range(len(previous_path) - 1):

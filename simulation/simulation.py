@@ -8,21 +8,21 @@ class Simulation:
 	def __init__(self, network: Network, graph: dict[str, list[Conection]]) -> None:
 		self.network = network
 		self.graph = graph
-		self.drones: dict[str, Drone] = self._init_drones()
+		self.drones: list[Drone] = self._init_drones()
 		self.turn = 0
 		self.positions: dict[int, str] = self._inii_positions()
 
-	def _init_drones(self) -> dict[str, Drone]:
-		drones: dict[str, Drone] = {}
+	def _init_drones(self) -> list[Drone]:
+		drones: list[Drone] = []
 		paths = find_path(self.network, self.graph)
 		for number in range(1, self.network.nb_drones + 1):
-			drones[str(number)] = Drone(id=number, path=paths[number % len(paths)], path_index=0)
+			drones.append(Drone(id=number, path=paths[number % len(paths)], path_index=0))
 		return drones
 
 	def _inii_positions(self) -> dict[int, str]:
 		positions: dict[int, str] = {}
 		start = self.network.start_hub.name
-		for _, drone in self.drones.items():
+		for drone in self.drones:
 			positions[drone.id] = start
 		return positions
 
@@ -76,7 +76,7 @@ class Simulation:
 		waiting_drones: list[Drone] = []
 		for conection in self.network.conections:
 			conection.passed_in_turn = 0
-		for _, drone in self.drones.items():
+		for drone in self.drones:
 			if drone.finished:
 				continue
 			next_hub = self._get_next_hub(drone)
