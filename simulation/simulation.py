@@ -11,6 +11,7 @@ class Simulation:
 		self.drones: list[Drone] = self._init_drones()
 		self.turn = 0
 		self.positions: dict[int, str] = self._inii_positions()
+		
 
 	def _init_drones(self) -> list[Drone]:
 		drones: list[Drone] = []
@@ -71,6 +72,12 @@ class Simulation:
 			if drone.path_index == len(drone.path) - 1:
 				drone.finished = True
 
+	def _end_simulation(self, drones: list[Drone]) -> bool:
+		for drone in drones:
+			if not drone.finished:
+				return False
+		return True
+
 	def run_turn(self):
 		planned_moves: list[tuple[Drone, Hub]] = []
 		waiting_drones: list[Drone] = []
@@ -95,4 +102,4 @@ class Simulation:
 		self._apply_moves(planned_moves)
 		print()
 		self.turn += 1
-		
+		return self._end_simulation(self.drones)

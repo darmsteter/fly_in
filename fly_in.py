@@ -31,7 +31,10 @@ if __name__ == "__main__":
 		graph = build_graph(network)
 		paths = find_path(network, graph)
 		simulation = Simulation(network, graph)
-		for _ in range(20):
-			simulation.run_turn()
+		while True:
+			if not simulation.run_turn():
+				continue
+			print(simulation.turn)
+			break
 	except ConfigurationException as e:
 		print(e)
