@@ -14,7 +14,7 @@ def parse_nb_drones(line: str) -> str:
 			"Invalid nb_drones declaration: expected 'nb_drones: <positive_integer>'."
 		)
 
-def parse_hub(hub: str, is_end_or_start: bool = False):
+def parse_hub(hub: str):
 	try:
 		seen_metadata = set()
 		color = None
@@ -44,17 +44,9 @@ def parse_hub(hub: str, is_end_or_start: bool = False):
 					seen_metadata.add(MetadataKey.COLOR)
 					color = value
 				elif key == MetadataKey.ZONE:
-					if is_end_or_start:
-						raise ConfigurationException(
-							f"End or start hub can't have zone type."
-						)
 					seen_metadata.add(MetadataKey.ZONE)
 					zone = value
 				elif key == MetadataKey.MAX_DRONES:
-					if is_end_or_start:
-						raise ConfigurationException(
-							f"End or start hub can't have max drone metadata."
-						)
 					seen_metadata.add(MetadataKey.MAX_DRONES)
 					max_drones = value
 				else:
@@ -128,13 +120,13 @@ def read_config_file(file_name: str) -> None:
 							raise ConfigurationException(
 								f"Duplicate configuration key: {ConfigKey.START_HUB}."
 							)
-						start_hub = parse_hub(line.split(": ", 1)[1].strip(), True)
+						start_hub = parse_hub(line.split(": ", 1)[1].strip())
 					elif line.startswith(f"{ConfigKey.END_HUB}:"):
 						if end_hub is not None:
 							raise ConfigurationException(
 								f"Duplicate configuration key: {ConfigKey.END_HUB}"
 							)
-						end_hub = parse_hub(line.split(": ", 1)[1].strip(), True)
+						end_hub = parse_hub(line.split(": ", 1)[1].strip())
 					elif line.startswith(f"{ConfigKey.HUB}:"):
 						hub = parse_hub(line.split(": ", 1)[1].strip())
 						if hub.name in hubs:

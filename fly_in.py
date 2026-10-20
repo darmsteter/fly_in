@@ -29,7 +29,7 @@ if __name__ == "__main__":
 		# network = read_config_file(sys.argv[1])
 		network = read_config_file("config.txt")
 		graph = build_graph(network)
-		path = find_path(network, graph)
+		paths = find_path(network, graph)
 		simulation = Simulation(network, graph)
 		for _ in range(20):
 			simulation.run_turn()
