@@ -37,6 +37,8 @@ def _dijkstra(
 			break
 		conections = graph[hub_name]
 		for conection in conections:
+			if conection.max_link_capacity == 0:
+				continue
 			neighbor = conection.name2
 			if neighbor in banned_hubs:
 				continue
@@ -81,7 +83,7 @@ def find_path(network: Network, graph: dict[str, list[Conection]]) -> list[list[
 	paths: list[list[str]] = [main_path]
 	candidates: list[tuple[float, tuple[str, ...]]] = []
 	candidate_paths: set[tuple[str, ...]] = set()
-	while len(paths) < 3:
+	while len(paths) < 2:
 		previous_path = paths[len(paths) - 1]
 
 		for i in range(len(previous_path) - 1):

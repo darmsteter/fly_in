@@ -15,6 +15,11 @@ def parse_nb_drones(line: str) -> str:
 		)
 
 def parse_hub(hub: str):
+	if not re.findall(f"^\\s*[a-zA-Z0-9_]+\\s+-?\\d+\\s+-?\\d+\\s+\\[.*\\]$", hub):
+		raise ConfigurationException(
+			"Incorrect format for hub line. Should be 'hub_type: "
+			"<name> <integer> <integer> [metadata]'."
+			)
 	try:
 		seen_metadata = set()
 		color = None
@@ -89,6 +94,18 @@ def parse_connection(conection: list[str]):
 		max_link_capacity=max_link_capacity
 	)
 
+def check_duplicate(name: str, hub_names: list[str], coordinates: list[tuple[int, int]], coordinate: tuple[int, int]) -> None:
+	if name in hub_names:
+		raise ConfigurationException(
+			f"Duplicate hub name: {name}."
+		)
+	if coordinate in coordinates:
+		raise ConfigurationException(
+			f"Duplicate zone coordinates: {coordinate}."
+		)
+	hub_names.append(name)
+	coordinates.append(coordinate)
+
 def read_config_file(file_name: str) -> None:
 	is_first_line = True
 	nb_drones = None
@@ -97,6 +114,10 @@ def read_config_file(file_name: str) -> None:
 	hubs: dict[str, Hub] = {}
 	connections: list[Conection] = []
 	line_number = 0
+	hub_names: list[str] = []
+	coordinates: list[tuple[int, int]] = []
+	is_hub = False
+	is_conection = False
 	try:
 		with open(file_name) as config_file:
 			for line in config_file:
@@ -116,25 +137,48 @@ def read_config_file(file_name: str) -> None:
 							f"The first line should define the number of drones using {ConfigKey.NB_DRONES}: <number>."
 						)
 					if line.startswith(f"{ConfigKey.START_HUB}:"):
+						is_hub = True
+						if is_conection:
+							raise ConfigurationException(
+								"Hubs should be before conection."
+							)
 						if start_hub is not None:
 							raise ConfigurationException(
 								f"Duplicate configuration key: {ConfigKey.START_HUB}."
 							)
 						start_hub = parse_hub(line.split(": ", 1)[1].strip())
+						check_duplicate(start_hub.name, hub_names, coordinates, (start_hub.x, start_hub.y))
 					elif line.startswith(f"{ConfigKey.END_HUB}:"):
+						is_hub = True
+						if is_conection:
+							raise ConfigurationException(
+								"Hubs should be before conection."
+							)
 						if end_hub is not None:
 							raise ConfigurationException(
 								f"Duplicate configuration key: {ConfigKey.END_HUB}"
 							)
 						end_hub = parse_hub(line.split(": ", 1)[1].strip())
+						check_duplicate(end_hub.name, hub_names, coordinates, (end_hub.x, end_hub.y))
 					elif line.startswith(f"{ConfigKey.HUB}:"):
+						is_hub = True
+						if is_conection:
+							raise ConfigurationException(
+								"Hubs should be before conection."
+							)
 						hub = parse_hub(line.split(": ", 1)[1].strip())
 						if hub.name in hubs:
 							raise ConfigurationException(
 								"Duplicate hub name."
 							)
 						hubs[hub.name] = hub
+						check_duplicate(hub.name, hub_names, coordinates, (hub.x, hub.y))
 					elif line.startswith(f"{ConfigKey.CONNTCTION}: "):
+						is_conection = True
+						if not is_hub:
+							raise ConfigurationException(
+								"Conections should be after hubs."
+							)
 						connections.append(parse_connection(line.split(": ", 1)[1].strip()))
 				is_first_line = False
 			return Network(
@@ -145,16 +189,16 @@ def read_config_file(file_name: str) -> None:
 				conections=connections
 			)
 	except ConfigurationException as e:
-		raise ConfigurationException(f"Error in line {line_number}: " + str(e))
+		raise ConfigurationException(str(e))
 	except ValueError as e:
-		raise ConfigurationException(f"Error in line {line_number}: " + str(e))
+		raise ConfigurationException(str(e))
 	except (ValidationError) as e:
 		error_dict = e.errors()
 		error_msg = "\n".join(
 			f"Invalid hub field '{error['loc'][0]}': {error['msg']}."
 			for error in error_dict
 		)
-		raise ConfigurationException(f"Error in line {line_number}: " +  error_msg)
+		raise ConfigurationException(error_msg)
 	except (FileNotFoundError, PermissionError, IsADirectoryError) as e:
 		raise ConfigurationException(str(e))
 	

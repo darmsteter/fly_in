@@ -39,6 +39,7 @@ class Color(StrEnum):
 	BLUE = '\033[34m'
 	PURPLE = '\033[35m'
 	LIGTH_BLUE = '\033[36m'
+	CYAN = '\033[96m'
 	RESET = '\033[0m'
 
 class Network(BaseModel):
@@ -47,6 +48,12 @@ class Network(BaseModel):
 	end_hub: Hub = Field(...)
 	hubs: dict[str, Hub] = Field(...)
 	conections: list[Conection] = Field(...)
+
+	@model_validator(mode='after')
+	def check_network(self) -> 'Network':
+		if self.start_hub.name in self.hubs or self.end_hub.name in self.hubs:
+			raise ValueError("The hub name cannot be the same as the start or the exit.")
+		return self
 
 class Hub(BaseModel):
 	name: str = Field(..., min_length=1)
@@ -74,6 +81,10 @@ class Hub(BaseModel):
 				color = Color.BLUE
 			case 'ligthblue':
 				color = Color.LIGTH_BLUE
+			case 'purple':
+				color = Color.PURPLE
+			case 'cyan':
+				color = Color.CYAN
 			case _:
 				color = Color.RESET
 		return f"{color}{self.name}{Color.RESET}"

@@ -9,6 +9,7 @@ def build_graph(network: Network):
 	for hub_name in network.hubs:
 		if hub_name != network.start_hub.name:
 			graph[hub_name] = []
+
 	
 	for connection in network.conections:
 		if connection.name1 not in graph and connection.name1 != network.end_hub.name:
