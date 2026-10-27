@@ -83,40 +83,39 @@ def find_path(network: Network, graph: dict[str, list[Conection]]) -> list[list[
 	paths: list[list[str]] = [main_path]
 	candidates: list[tuple[float, tuple[str, ...]]] = []
 	candidate_paths: set[tuple[str, ...]] = set()
-	while len(paths) < 2:
-		previous_path = paths[len(paths) - 1]
+	previous_path = paths[len(paths) - 1]
 
-		for i in range(len(previous_path) - 1):
-			root_path = []
-			for j in range(i + 1):
-				root_path.append(previous_path[j])
-			spur_node = previous_path[i]
-			b_connections: set[tuple[str, str]] = set()
-			for path in paths:
-				if len(path) > i + 1 and path[:i + 1] == root_path:
-					b_connections.add((path[i], path[i + 1]))
-			b_hubs = set()
-			for hub in root_path:
-				if hub != spur_node:
-					b_hubs.add(hub)
-			spur_path = _dijkstra(network, graph, spur_node, end, b_hubs, b_connections)
-			if spur_path is None:
-				continue
-			total_path = []
-			for j in range(len(root_path) - 1):
-				total_path.append(root_path[j])
-			for hub in spur_path:
-				total_path.append(hub)
-			total_cost = _path_cost(network, total_path)
-			if total_cost > max_cost:
-				continue
-			path_key = tuple(total_path)
-			if (path_key in candidate_paths or total_path in paths):
-				continue
-			heapq.heappush(candidates, (total_cost, path_key))
-			candidate_paths.add(path_key)
-		if not candidates:
-			break
+	for i in range(len(previous_path) - 1):
+		root_path = []
+		for j in range(i + 1):
+			root_path.append(previous_path[j])
+		spur_node = previous_path[i]
+		b_connections: set[tuple[str, str]] = set()
+		for path in paths:
+			if len(path) > i + 1 and path[:i + 1] == root_path:
+				b_connections.add((path[i], path[i + 1]))
+		b_hubs = set()
+		for hub in root_path:
+			if hub != spur_node:
+				b_hubs.add(hub)
+		spur_path = _dijkstra(network, graph, spur_node, end, b_hubs, b_connections)
+		if spur_path is None:
+			continue
+		total_path = []
+		for j in range(len(root_path) - 1):
+			total_path.append(root_path[j])
+		for hub in spur_path:
+			total_path.append(hub)
+		total_cost = _path_cost(network, total_path)
+		if total_cost > max_cost:
+			continue
+		path_key = tuple(total_path)
+		if (path_key in candidate_paths or total_path in paths):
+			continue
+		heapq.heappush(candidates, (total_cost, path_key))
+		candidate_paths.add(path_key)
+
+	if candidates:
 		_, next_path = heapq.heappop(candidates)
 		candidate_paths.remove(next_path)
 		paths.append(list(next_path))

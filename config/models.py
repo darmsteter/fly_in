@@ -40,6 +40,7 @@ class Color(StrEnum):
 	PURPLE = '\033[35m'
 	LIGTH_BLUE = '\033[36m'
 	CYAN = '\033[96m'
+	ORANGE = '\033[38;5;208m'
 	RESET = '\033[0m'
 
 class Network(BaseModel):
@@ -85,8 +86,12 @@ class Hub(BaseModel):
 				color = Color.PURPLE
 			case 'cyan':
 				color = Color.CYAN
+			case 'orange':
+				color = Color.ORANGE
 			case _:
-				color = Color.RESET
+				raise ValueError(
+					f"Unknown color: {self.color}. Can be on of list: red, green, yellow, blue, ligthblue, purple, cyan or none."
+					)
 		return f"{color}{self.name}{Color.RESET}"
 
 class Conection(BaseModel):

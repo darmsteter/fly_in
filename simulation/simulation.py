@@ -17,7 +17,6 @@ class Simulation:
 		paths = find_path(self.network, self.graph)
 		for number in range(1, self.network.nb_drones + 1):
 			drones.append(Drone(id=number, path=paths[(number - 1) % len(paths)], path_index=0))
-			print((number - 1) % len(paths))
 		return drones
 
 	def _inii_positions(self) -> dict[int, str]:

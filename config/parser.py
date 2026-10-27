@@ -14,8 +14,8 @@ def parse_nb_drones(line: str) -> str:
 			"Invalid nb_drones declaration: expected 'nb_drones: <positive_integer>'."
 		)
 
-def parse_hub(hub: str):
-	if not re.findall(f"^\\s*[a-zA-Z0-9_]+\\s+-?\\d+\\s+-?\\d+\\s+\\[.*\\]$", hub):
+def parse_hub(hub: str, is_regular: bool = True):
+	if not re.findall(f"^\\s*[a-zA-Z0-9_]+\\s+-?\\d+\\s+-?\\d+\\s*\\[?.*\\]?$", hub):
 		raise ConfigurationException(
 			"Incorrect format for hub line. Should be 'hub_type: "
 			"<name> <integer> <integer> [metadata]'."
@@ -49,6 +49,10 @@ def parse_hub(hub: str):
 					seen_metadata.add(MetadataKey.COLOR)
 					color = value
 				elif key == MetadataKey.ZONE:
+					if not is_regular:
+						raise ConfigurationException(
+							f"Metadata 'zone' can't showed up for start or end hub, hub: '{hub}'."
+						)
 					seen_metadata.add(MetadataKey.ZONE)
 					zone = value
 				elif key == MetadataKey.MAX_DRONES:
@@ -69,7 +73,12 @@ def parse_hub(hub: str):
 			f"Incorrect entry for hub: '{hub}', should be '<name> <x> <y> [metadata]'."
 		)
 
-def parse_connection(conection: list[str]):
+def parse_connection(conection: str):
+	if not re.findall(f"^[a-zA-Z0-9_]+-[a-zA-Z0-9_]+\\s?\\[?[a-zA-Z_]*=?[0-9]*\\]?$", conection):
+		raise ConfigurationException(
+			"Incorrect format for hub line. Should be 'hub_type: "
+			"<name> <integer> <integer> [metadata]'."
+			)
 	parts = conection.split('[', 1)
 	names = parts[0].split('-', 1)
 	max_link_capacity = '1'
@@ -146,7 +155,7 @@ def read_config_file(file_name: str) -> None:
 							raise ConfigurationException(
 								f"Duplicate configuration key: {ConfigKey.START_HUB}."
 							)
-						start_hub = parse_hub(line.split(": ", 1)[1].strip())
+						start_hub = parse_hub(line.split(": ", 1)[1].strip(), False)
 						check_duplicate(start_hub.name, hub_names, coordinates, (start_hub.x, start_hub.y))
 					elif line.startswith(f"{ConfigKey.END_HUB}:"):
 						is_hub = True
@@ -158,7 +167,7 @@ def read_config_file(file_name: str) -> None:
 							raise ConfigurationException(
 								f"Duplicate configuration key: {ConfigKey.END_HUB}"
 							)
-						end_hub = parse_hub(line.split(": ", 1)[1].strip())
+						end_hub = parse_hub(line.split(": ", 1)[1].strip(), False)
 						check_duplicate(end_hub.name, hub_names, coordinates, (end_hub.x, end_hub.y))
 					elif line.startswith(f"{ConfigKey.HUB}:"):
 						is_hub = True
