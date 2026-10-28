@@ -1,10 +1,10 @@
 from .models import Drone
-from config.models import Network, Conection, Hub, ZoneEnum
+from map_parser.models import Network, Connection, Hub, ZoneEnum
 from find_path import find_path
 import copy
 
 class Simulation:
-	def __init__(self, network: Network, graph: dict[str, list[Conection]]) -> None:
+	def __init__(self, network: Network, graph: dict[str, list[Connection]]) -> None:
 		self.network = network
 		self.graph = graph
 		self.drones: list[Drone] = self._init_drones()
@@ -47,8 +47,8 @@ class Simulation:
 			return self.network.hubs[next_hub]
 		return None
 
-	def _get_connection(self, current_hub_name: str, next_hub_name: str) -> Conection | None:
-		for conection in self.network.conections:
+	def _get_connection(self, current_hub_name: str, next_hub_name: str) -> Connection | None:
+		for conection in self.network.connections:
 			if conection.name1 == current_hub_name and conection.name2 == next_hub_name:
 				return conection
 		return None
@@ -115,7 +115,7 @@ class Simulation:
 		if self.turn not in self.turns_history:
 			self.turns_history[self.turn] = self._inii_positions()
 		self.turns_history[self.turn + 1] = self.turns_history[self.turn].copy()
-		for connection in self.network.conections:
+		for connection in self.network.connections:
 			connection.passed_in_turn = 0
 		for drone in self.drones:
 			if drone.finished:

@@ -1,18 +1,18 @@
-from config.models import Network, Conection
+from map_parser.models import Network, Connection
 from math import inf
 import heapq
 from errors import ConfigurationException
 
 def _get_hub_cost(network: Network, hub_name: str) -> float:
 	if network.start_hub.name == hub_name:
-		return network.start_hub.zone.get_distance()
+		return network.start_hub.zone.get_traversal_cost()
 	elif network.end_hub.name == hub_name:
 		return 0
-	return network.hubs[hub_name].zone.get_distance()
+	return network.hubs[hub_name].zone.get_traversal_cost()
 
 def _dijkstra(
 		network: Network, 
-		graph: dict[str, list[Conection]],
+		graph: dict[str, list[Connection]],
 		start: str,
 		end: str,
 		banned_hubs: list[str],
@@ -69,7 +69,7 @@ def _path_cost(network: Network, path: list[str]) -> float:
 		for hub_name in path
 	)
 
-def find_path(network: Network, graph: dict[str, list[Conection]]) -> list[list[str]]:
+def find_path(network: Network, graph: dict[str, list[Connection]]) -> list[list[str]]:
 	start = network.start_hub.name
 	end = network.end_hub.name
 

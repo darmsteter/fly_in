@@ -1,12 +1,12 @@
 from errors import ConfigurationException
-from .models import ConfigKey, Hub, ZoneEnum, Conection, Network, MetadataKey
+from .models import Hub, ZoneEnum, Connection, Network
+from map_parser.enums import MapKey, MetadataKey
 from pydantic import ValidationError
 
-from typing import Any
 import re
 
 def parse_nb_drones(line: str) -> str:
-	if re.fullmatch(f"{ConfigKey.NB_DRONES}:\\s+\\d+$", line):
+	if re.fullmatch(f"{MapKey.NB_DRONES}:\\s+\\d+$", line):
 		_, value = line.split(":", 1)
 		return value.strip()
 	else:
@@ -97,7 +97,7 @@ def parse_connection(conection: str):
 				raise ConfigurationException(
 					f"Unknown conection metadata: {key}."
 				)
-	return Conection(
+	return Connection(
 		name1=names[0].strip(),
 		name2=names[1].strip(),
 		max_link_capacity=max_link_capacity
@@ -115,13 +115,13 @@ def check_duplicate(name: str, hub_names: list[str], coordinates: list[tuple[int
 	hub_names.append(name)
 	coordinates.append(coordinate)
 
-def read_config_file(file_name: str) -> None:
+def read_config_file(file_name: str) -> Network:
 	is_first_line = True
 	nb_drones = None
 	start_hub: Hub | None = None
 	end_hub: Hub | None = None 
 	hubs: dict[str, Hub] = {}
-	connections: list[Conection] = []
+	connections: list[Connection] = []
 	line_number = 0
 	hub_names: list[str] = []
 	coordinates: list[tuple[int, int]] = []
@@ -134,18 +134,18 @@ def read_config_file(file_name: str) -> None:
 				line = line.strip()
 				if line.startswith('#') or line == "":
 					continue
-				elif line.startswith(f"{ConfigKey.NB_DRONES}:"):
+				elif line.startswith(f"{MapKey.NB_DRONES}:"):
 					if nb_drones is not None:
 						raise ConfigurationException(
-							f"Duplicate configuration key: {ConfigKey.NB_DRONES}."
+							f"Duplicate configuration key: {MapKey.NB_DRONES}."
 						)
 					nb_drones = parse_nb_drones(line)
 				else:
 					if is_first_line:
 						raise ConfigurationException(
-							f"The first line should define the number of drones using {ConfigKey.NB_DRONES}: <number>."
+							f"The first line should define the number of drones using {MapKey.NB_DRONES}: <number>."
 						)
-					if line.startswith(f"{ConfigKey.START_HUB}:"):
+					if line.startswith(f"{MapKey.START_HUB}:"):
 						is_hub = True
 						if is_conection:
 							raise ConfigurationException(
@@ -153,11 +153,11 @@ def read_config_file(file_name: str) -> None:
 							)
 						if start_hub is not None:
 							raise ConfigurationException(
-								f"Duplicate configuration key: {ConfigKey.START_HUB}."
+								f"Duplicate configuration key: {MapKey.START_HUB}."
 							)
 						start_hub = parse_hub(line.split(": ", 1)[1].strip(), False)
 						check_duplicate(start_hub.name, hub_names, coordinates, (start_hub.x, start_hub.y))
-					elif line.startswith(f"{ConfigKey.END_HUB}:"):
+					elif line.startswith(f"{MapKey.END_HUB}:"):
 						is_hub = True
 						if is_conection:
 							raise ConfigurationException(
@@ -165,11 +165,11 @@ def read_config_file(file_name: str) -> None:
 							)
 						if end_hub is not None:
 							raise ConfigurationException(
-								f"Duplicate configuration key: {ConfigKey.END_HUB}"
+								f"Duplicate configuration key: {MapKey.END_HUB}"
 							)
 						end_hub = parse_hub(line.split(": ", 1)[1].strip(), False)
 						check_duplicate(end_hub.name, hub_names, coordinates, (end_hub.x, end_hub.y))
-					elif line.startswith(f"{ConfigKey.HUB}:"):
+					elif line.startswith(f"{MapKey.HUB}:"):
 						is_hub = True
 						if is_conection:
 							raise ConfigurationException(
@@ -182,7 +182,7 @@ def read_config_file(file_name: str) -> None:
 							)
 						hubs[hub.name] = hub
 						check_duplicate(hub.name, hub_names, coordinates, (hub.x, hub.y))
-					elif line.startswith(f"{ConfigKey.CONNTCTION}: "):
+					elif line.startswith(f"{MapKey.CONNECTION}: "):
 						is_conection = True
 						if not is_hub:
 							raise ConfigurationException(
@@ -195,7 +195,7 @@ def read_config_file(file_name: str) -> None:
 				start_hub=start_hub,
 				end_hub=end_hub,
 				hubs=hubs,
-				conections=connections
+				connections=connections
 			)
 	except ConfigurationException as e:
 		raise ConfigurationException(str(e))

@@ -1,4 +1,5 @@
-from config.parser import read_config_file
+
+from map_parser.parser import read_config_file
 from errors import ConfigurationException
 from graph_builder import build_graph
 from find_path import find_path
@@ -9,7 +10,7 @@ if __name__ == "__main__":
 	# if len(sys.argv) != 2:
 	# 	print(
 	# 		"Your program must be run with the following command: "
-	# 		"python3 fly_in.py config.txt"
+	# 		"python3 fly_in.py map_parser.txt"
 	# 	)
 	# 	exit()
 	try:
