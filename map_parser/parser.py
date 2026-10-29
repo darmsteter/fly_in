@@ -6,16 +6,52 @@ from pydantic import ValidationError
 import re
 
 def parse_nb_drones(line: str) -> str:
-	if re.fullmatch(f"{MapKey.NB_DRONES}:\\s+\\d+$", line):
-		_, value = line.split(":", 1)
-		return value.strip()
-	else:
+	"""Extract the drone count from a map declaration.
+
+	Validate that the line follows the 'nb_drones: <positive_integer>'
+	format.
+
+	Args:
+	    line: Raw nb_drones declaration from the map file.
+
+	Returns:
+	    The drone count as a string for subsequent model validation.
+
+	Raises:
+	    ConfigurationException: If the declaration has an invalid format.
+	"""
+	if not re.fullmatch(f"{MapKey.NB_DRONES}:\\s*\\d+$", line):
 		raise ConfigurationException(
 			"Invalid nb_drones declaration: expected 'nb_drones: <positive_integer>'."
 		)
+	_, value = line.split(":", 1)
+	return value.strip()
 
-def parse_hub(hub: str, is_regular: bool = True):
-	if not re.findall(f"^\\s*[a-zA-Z0-9_]+\\s+-?\\d+\\s+-?\\d+\\s*\\[?.*\\]?$", hub):
+
+def parse_hub(hub: str, is_regular: bool = True) -> Hub:
+	"""Parse a hub declaration and validate its metadata.
+
+	Extract the hub name, coordinates, and optional metadata. Supported
+	metadata includes color, zone, and maximum drone capacity. The zone
+	metadata is only allowed for regular hubs, not start or end hubs.
+
+	Args:
+	    hub: Raw hub declaration containing its name, coordinates,
+	        and optional metadata in square brackets.
+	    is_regular: Whether the hub is a regular hub. Set to False for
+	        start and end hubs, where zone metadata is not allowed.
+
+	Returns:
+	    A Hub instance populated with the parsed values.
+
+	Raises:
+	    ConfigurationException: If the declaration has an invalid format,
+	        contains duplicate or unknown metadata, or uses zone metadata
+	        for a start or end hub.
+	    ValidationError: If the parsed values fail Hub model validation.
+	"""
+
+	if not re.fullmatch(f"^\\s*[a-zA-Z0-9_]+\\s+-?\\d+\\s+-?\\d+\\s*\\[?.*\\]?$", hub):
 		raise ConfigurationException(
 			"Incorrect format for hub line. Should be 'hub_type: "
 			"<name> <integer> <integer> [metadata]'."
@@ -40,7 +76,7 @@ def parse_hub(hub: str, is_regular: bool = True):
 				)
 			metadata = metadata[:-1]
 			for item in metadata.split():
-				key, value = item.split('=')
+				key, value = item.split('=', 1)
 				if key in seen_metadata:
 						raise ConfigurationException(
 							f"Metadata {key} appeared twice for hub {name_and_coordinates[0]}."
