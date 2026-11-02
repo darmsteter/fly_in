@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 from map_parser.enums import ZoneEnum
 from map_parser.colors import Color, rainbow
 
@@ -25,8 +25,19 @@ class Hub(BaseModel):
 	x: int
 	y: int
 	zone: ZoneEnum = ZoneEnum.NORMAL
-	color: str = Field(min_length=1)
+	color: str = Color.RESET.name
 	max_drones: int = Field(default=1, gt=0)
+
+
+	@field_validator('color')
+	@classmethod
+	def validate_color(cls, field: str) -> str:
+		if field.lower() == "rainbow":
+			return field
+
+		if field.upper() not in Color.__members__:
+			raise ValueError(f"Unknown color: {field}")
+		return field
 
 	@model_validator(mode="after")
 	def validate_name(self) -> "Hub":
@@ -55,7 +66,7 @@ class Connection(BaseModel):
 
 	name1: str = Field(min_length=1)
 	name2: str = Field(min_length=1)
-	max_link_capacity: int = Field(default=1)
+	max_link_capacity: int = Field(default=1, ge=0 )
 	passed_in_turn: int = Field(default=0, ge=0)
 
 	@model_validator(mode="after")

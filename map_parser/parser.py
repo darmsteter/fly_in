@@ -1,11 +1,11 @@
-from errors import ConfigurationException
+from errors import MapParsingError, format_validation_error
 from .models import Hub, ZoneEnum, Connection, Network
 from map_parser.enums import MapKey, MetadataKey
 from pydantic import ValidationError
-
+from .colors import Color
 import re
 
-def parse_nb_drones(line: str) -> str:
+def _parse_nb_drones(line: str) -> str:
 	"""Extract the drone count from a map declaration.
 
 	Validate that the line follows the 'nb_drones: <positive_integer>'
@@ -18,141 +18,129 @@ def parse_nb_drones(line: str) -> str:
 	    The drone count as a string for subsequent model validation.
 
 	Raises:
-	    ConfigurationException: If the declaration has an invalid format.
+	    MapParsingError: If the declaration has an invalid format.
 	"""
 	if not re.fullmatch(f"{MapKey.NB_DRONES}:\\s*\\d+$", line):
-		raise ConfigurationException(
+		raise MapParsingError(
 			"Invalid nb_drones declaration: expected 'nb_drones: <positive_integer>'."
 		)
 	_, value = line.split(":", 1)
 	return value.strip()
 
-
-def parse_hub(hub: str, is_regular: bool = True) -> Hub:
-	"""Parse a hub declaration and validate its metadata.
-
-	Extract the hub name, coordinates, and optional metadata. Supported
-	metadata includes color, zone, and maximum drone capacity. The zone
-	metadata is only allowed for regular hubs, not start or end hubs.
-
-	Args:
-	    hub: Raw hub declaration containing its name, coordinates,
-	        and optional metadata in square brackets.
-	    is_regular: Whether the hub is a regular hub. Set to False for
-	        start and end hubs, where zone metadata is not allowed.
-
-	Returns:
-	    A Hub instance populated with the parsed values.
-
-	Raises:
-	    ConfigurationException: If the declaration has an invalid format,
-	        contains duplicate or unknown metadata, or uses zone metadata
-	        for a start or end hub.
-	    ValidationError: If the parsed values fail Hub model validation.
-	"""
-
-	if not re.fullmatch(f"^\\s*[a-zA-Z0-9_]+\\s+-?\\d+\\s+-?\\d+\\s*\\[?.*\\]?$", hub):
-		raise ConfigurationException(
-			"Incorrect format for hub line. Should be 'hub_type: "
-			"<name> <integer> <integer> [metadata]'."
-			)
-	try:
-		seen_metadata = set()
-		color = None
-		zone = ZoneEnum.NORMAL
-		max_drones = 1
-
-		parts = hub.split("[", 1)
-		name_and_coordinates = parts[0].split()
-		if len(name_and_coordinates) > 3:
-			raise ConfigurationException(
-				f"Incorrect entry for hub: '{hub}', should be '<name> <x> <y> [metadata]'."
-			)
-		if len(parts) > 1:
-			metadata = parts[1]
-			if not metadata.endswith(']'):
-				raise ConfigurationException(
-					f"Invalid metadata format: 'hub: {hub}'."
-				)
-			metadata = metadata[:-1]
-			for item in metadata.split():
-				key, value = item.split('=', 1)
-				if key in seen_metadata:
-						raise ConfigurationException(
-							f"Metadata {key} appeared twice for hub {name_and_coordinates[0]}."
-						)
-				if key == MetadataKey.COLOR: 
-					seen_metadata.add(MetadataKey.COLOR)
-					color = value
-				elif key == MetadataKey.ZONE:
-					if not is_regular:
-						raise ConfigurationException(
-							f"Metadata 'zone' can't showed up for start or end hub, hub: '{hub}'."
-						)
-					seen_metadata.add(MetadataKey.ZONE)
-					zone = value
-				elif key == MetadataKey.MAX_DRONES:
-					seen_metadata.add(MetadataKey.MAX_DRONES)
-					max_drones = value
-				else:
-					raise ConfigurationException(
-						f"Unknown hub metadata: {key}."
-					)
-		return Hub(name=name_and_coordinates[0].strip(),
-			x=name_and_coordinates[1],
-			y=name_and_coordinates[2],
-			zone=zone,
-			color=color,
-			max_drones=max_drones)
-	except IndexError:
-		raise ConfigurationException(
-			f"Incorrect entry for hub: '{hub}', should be '<name> <x> <y> [metadata]'."
+def _parse_metadata_item(item: str, is_regular: bool, hub_name: str) -> tuple[MetadataKey, str]:
+	if "=" not in item:
+		raise MapParsingError(
+			f"Invalid metadata entry '{item}' for hub {hub_name}. "
+			"Expected 'key=value'."
 		)
 
-def parse_connection(conection: str):
-	if not re.findall(f"^[a-zA-Z0-9_]+-[a-zA-Z0-9_]+\\s?\\[?[a-zA-Z_]*=?[0-9]*\\]?$", conection):
-		raise ConfigurationException(
-			"Incorrect format for hub line. Should be 'hub_type: "
+	key, value = item.split('=', 1)
+	if not key or not value:
+		raise  MapParsingError(
+			f"Invalid metadata entry '{item}' for hub {hub_name}."
+			"Expected 'key=value'."
+		)
+	try:
+		key = MetadataKey(key)
+	except ValueError:
+		raise MapParsingError(f"Unknown hub metadata: {key}.")
+
+	if key is MetadataKey.ZONE and not is_regular:
+		raise MapParsingError(
+			f"Metadata 'zone' is not allowed for start or end hub '{hub_name}'."
+		)
+	return key, value
+
+def _parse_hub_metadata(metadata: str | None, is_regular: bool, hub_name: str) -> dict[MetadataKey, str]:
+	parsed_metadata: dict[MetadataKey, str] = {}
+
+	if metadata is None:
+		return parsed_metadata
+
+	for item in metadata.split():
+		key, value = _parse_metadata_item(item, is_regular, hub_name)
+		if key is MetadataKey.MAX_LINK_CAPACITY:
+			raise MapParsingError(
+				f"Metadata 'max_link_capacity' for hub: {hub_name}."
+			)
+		if key in parsed_metadata:
+			raise MapParsingError(
+				f"Metadata {key} appeared twice for hub: {hub_name}."
+			)
+		parsed_metadata[key] = value
+
+	return parsed_metadata
+
+def _parse_hub(hub: str, is_regular: bool = True) -> Hub:
+
+	match = re.fullmatch("\\s*([a-zA-Z0-9_]+)\\s+(-?\\d+)\\s+(-?\\d+)\\s*(?:\\[(.*?)\\])?\\s*", hub)
+	if not match:
+		raise MapParsingError("Incorrect format for hub line. Expected "
+							  "'<name> <integer> <integer> [metadata]'.")
+
+	name, x, y, metadata = match.groups()
+
+	hub_metadata = _parse_hub_metadata(metadata, is_regular, name)
+
+	return Hub(
+		name=name,
+		x=x,
+		y=y,
+		zone=hub_metadata.get(MetadataKey.ZONE, ZoneEnum.NORMAL),
+		color=hub_metadata.get(MetadataKey.COLOR, Color.RESET.name),
+		max_drones=hub_metadata.get(MetadataKey.MAX_DRONES, 1)
+	)
+
+def parse_connection(connection: str):
+	match = re.fullmatch("([a-zA-Z0-9_]+)-([a-zA-Z0-9_]+)\\s*(?:\\[(.*?)\\])?\\s*", connection)
+
+	if not match:
+		raise MapParsingError(
+			"Incorrect format for connection line. Should be 'hub_type: "
 			"<name> <integer> <integer> [metadata]'."
 			)
-	parts = conection.split('[', 1)
-	names = parts[0].split('-', 1)
-	max_link_capacity = '1'
-	if len(parts) > 1:
-		metadata = parts[1]
-		if not metadata.endswith(']'):
-			raise ConfigurationException(
-				f"Invalid metadata format: 'conection: {conection}'"
+	name1, name2, metadata = match.groups()
+	max_link_capacity = 1
+
+	if metadata is not None:
+		items = metadata.split()
+		if len(items) > 1:
+			raise MapParsingError(
+				f"Metadata appeared twice for connection "
+				f"'{name1}-{name2}'."
 			)
-		metadata = metadata[:-1]
-		for item in metadata.split():
-			key, value = item.split('=')
-			if key == MetadataKey.MAX_LINK_CAPACITY:
-				max_link_capacity = value
-			else:
-				raise ConfigurationException(
-					f"Unknown conection metadata: {key}."
-				)
+		item = items[0]
+		if "=" not in item:
+			raise MapParsingError(
+				f"Invalid metadata format: '{item}'. Expected 'key=value'."
+			)
+		key, value = item.split('=', 1)
+		if key == MetadataKey.MAX_LINK_CAPACITY:
+			max_link_capacity = value
+		else:
+			raise MapParsingError(
+				f"Unknown connection metadata: {key}."
+			)
 	return Connection(
-		name1=names[0].strip(),
-		name2=names[1].strip(),
+		name1=name1,
+		name2=name2,
 		max_link_capacity=max_link_capacity
 	)
 
 def check_duplicate(name: str, hub_names: list[str], coordinates: list[tuple[int, int]], coordinate: tuple[int, int]) -> None:
 	if name in hub_names:
-		raise ConfigurationException(
+		raise MapParsingError(
 			f"Duplicate hub name: {name}."
 		)
 	if coordinate in coordinates:
-		raise ConfigurationException(
+		raise MapParsingError(
 			f"Duplicate zone coordinates: {coordinate}."
 		)
 	hub_names.append(name)
 	coordinates.append(coordinate)
 
 def read_config_file(file_name: str) -> Network:
-	is_first_line = True
+	is_first_map_line = True
 	nb_drones = None
 	start_hub: Hub | None = None
 	end_hub: Hub | None = None 
@@ -167,65 +155,61 @@ def read_config_file(file_name: str) -> Network:
 		with open(file_name) as config_file:
 			for line in config_file:
 				line_number += 1
-				line = line.strip()
-				if line.startswith('#') or line == "":
+				line = line.split('#', 1)[0].strip()
+				if not line:
 					continue
 				elif line.startswith(f"{MapKey.NB_DRONES}:"):
 					if nb_drones is not None:
-						raise ConfigurationException(
+						raise MapParsingError(
 							f"Duplicate configuration key: {MapKey.NB_DRONES}."
 						)
-					nb_drones = parse_nb_drones(line)
+					nb_drones = _parse_nb_drones(line)
 				else:
-					if is_first_line:
-						raise ConfigurationException(
+					if is_first_map_line:
+						raise MapParsingError(
 							f"The first line should define the number of drones using {MapKey.NB_DRONES}: <number>."
 						)
 					if line.startswith(f"{MapKey.START_HUB}:"):
 						is_hub = True
 						if is_conection:
-							raise ConfigurationException(
+							raise MapParsingError(
 								"Hubs should be before conection."
 							)
 						if start_hub is not None:
-							raise ConfigurationException(
+							raise MapParsingError(
 								f"Duplicate configuration key: {MapKey.START_HUB}."
 							)
-						start_hub = parse_hub(line.split(": ", 1)[1].strip(), False)
+						start_hub = _parse_hub(line.split(": ", 1)[1].strip(), False)
 						check_duplicate(start_hub.name, hub_names, coordinates, (start_hub.x, start_hub.y))
 					elif line.startswith(f"{MapKey.END_HUB}:"):
 						is_hub = True
 						if is_conection:
-							raise ConfigurationException(
+							raise MapParsingError(
 								"Hubs should be before conection."
 							)
 						if end_hub is not None:
-							raise ConfigurationException(
+							raise MapParsingError(
 								f"Duplicate configuration key: {MapKey.END_HUB}"
 							)
-						end_hub = parse_hub(line.split(": ", 1)[1].strip(), False)
+						end_hub = _parse_hub(line.split(": ", 1)[1].strip(), False)
 						check_duplicate(end_hub.name, hub_names, coordinates, (end_hub.x, end_hub.y))
 					elif line.startswith(f"{MapKey.HUB}:"):
 						is_hub = True
 						if is_conection:
-							raise ConfigurationException(
+							raise MapParsingError(
 								"Hubs should be before conection."
 							)
-						hub = parse_hub(line.split(": ", 1)[1].strip())
-						if hub.name in hubs:
-							raise ConfigurationException(
-								"Duplicate hub name."
-							)
+						hub = _parse_hub(line.split(": ", 1)[1].strip())
 						hubs[hub.name] = hub
 						check_duplicate(hub.name, hub_names, coordinates, (hub.x, hub.y))
 					elif line.startswith(f"{MapKey.CONNECTION}: "):
 						is_conection = True
 						if not is_hub:
-							raise ConfigurationException(
+							raise MapParsingError(
 								"Conections should be after hubs."
 							)
 						connections.append(parse_connection(line.split(": ", 1)[1].strip()))
-				is_first_line = False
+				is_first_map_line = False
 			return Network(
 				nb_drones=nb_drones, 
 				start_hub=start_hub,
@@ -233,17 +217,11 @@ def read_config_file(file_name: str) -> Network:
 				hubs=hubs,
 				connections=connections
 			)
-	except ConfigurationException as e:
-		raise ConfigurationException(str(e))
+	except MapParsingError as e:
+		raise MapParsingError(f"Error in line {line_number}: {e}")
+	except ValidationError as e:
+		raise MapParsingError(f"Error in line {line_number}: {format_validation_error(e)}") from e
 	except ValueError as e:
-		raise ConfigurationException(str(e))
-	except (ValidationError) as e:
-		error_dict = e.errors()
-		error_msg = "\n".join(
-			f"Invalid hub field '{error['loc'][0]}': {error['msg']}."
-			for error in error_dict
-		)
-		raise ConfigurationException(error_msg)
+		raise MapParsingError(str(e))
 	except (FileNotFoundError, PermissionError, IsADirectoryError) as e:
-		raise ConfigurationException(str(e))
-	
+		raise MapParsingError(str(e))

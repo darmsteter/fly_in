@@ -1,7 +1,7 @@
 from map_parser.models import Network, Connection
 from math import inf
 import heapq
-from errors import ConfigurationException
+from errors import MapParsingError
 
 def _get_hub_cost(network: Network, hub_name: str) -> float:
 	if network.start_hub.name == hub_name:
@@ -75,7 +75,7 @@ def find_path(network: Network, graph: dict[str, list[Connection]]) -> list[list
 
 	main_path = _dijkstra(network, graph, start, end, set(), set())
 	if main_path is None:
-		raise ConfigurationException(
+		raise MapParsingError(
 			"It is impossible to reach the exit."
 		)
 	main_path_cost = _path_cost(network, main_path)

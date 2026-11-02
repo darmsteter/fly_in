@@ -1,6 +1,6 @@
 
 from map_parser.parser import read_config_file
-from errors import ConfigurationException
+from errors import MapParsingError
 from graph_builder import build_graph
 from find_path import find_path
 from simulation import Simulation
@@ -24,7 +24,7 @@ if __name__ == "__main__":
 				continue			
 			break
 		print(simulation.turn)
-	except ConfigurationException as e:
+	except MapParsingError as e:
 		print(e)
 	except Exception as e:
 		print(f"Something went wrong: {e}")
