@@ -1,6 +1,6 @@
 from .models import Drone
-from map_parser.models import Network, Connection, Hub, ZoneEnum
-from find_path import find_path
+from src.fly_in.map_parser.models import Network, Connection, Hub, ZoneEnum
+from src.fly_in.find_path import find_path
 
 class Simulation:
 	"""Simulate drones moving through a network of hubs."""

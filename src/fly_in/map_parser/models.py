@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, model_validator, field_validator
-from map_parser.enums import ZoneEnum
-from map_parser.colors import Color, rainbow
+from .enums import ZoneEnum
+from .colors import Color, rainbow
 
 class Network(BaseModel):
 	"""Represent the parsed drone network and its configuration."""
@@ -87,8 +87,8 @@ class Connection(BaseModel):
 
 		Connections are considered identical regardless of endpoint order.
 		"""
-		if self.name1 == other.name1 and self.name2 == other.name2:
-			return True
-		elif self.name1 == other.name2 and self.name2 == other.name1:
-			return True
-		return False
+		return (
+				self.name1 == other.name1 and self.name2 == other.name2
+		) or (
+				self.name1 == other.name2 and self.name2 == other.name1
+		)

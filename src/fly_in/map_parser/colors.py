@@ -18,6 +18,8 @@ class Color(StrEnum):
 	DARKRED = '\033[38;5;88m'
 	VIOLET = '\033[38;5;129m'
 	CRIMSON = '\033[38;5;161m'
+	BLACK = '\033[30m'
+	BROWN = '\033[38;5;94m'
 	RESET = '\033[0m'
 
 def rainbow(text: str) -> str:
