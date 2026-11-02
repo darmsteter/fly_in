@@ -17,10 +17,10 @@ clean:
 
 lint:
 	flake8 src
-	mypy . src
+	mypy src
 
 lint-strict:
 	flake8 src
-	mypy . --strict src
+	mypy src --strict
 
 .PHONY: install run debug clean lint lint-strict
