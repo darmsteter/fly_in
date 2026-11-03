@@ -21,7 +21,6 @@ def main() -> None:
             if not simulation.run_turn():
                 continue
             break
-        print(simulation.turn)
     except MapParsingError as e:
         print(e)
     except Exception as e:

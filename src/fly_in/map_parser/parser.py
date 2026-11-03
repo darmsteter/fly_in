@@ -151,6 +151,11 @@ def _parse_hub(hub: str, is_regular_hub: bool = True) -> Hub:
 
     name, x, y, metadata = match.groups()
 
+    if metadata is not None and not metadata.strip():
+        raise MapParsingError(
+            f"Empty metadata for hub '{name}'."
+        )
+
     hub_metadata = _parse_hub_metadata(metadata, is_regular_hub, name)
 
     return Hub(
@@ -265,7 +270,7 @@ def read_map_file(file_name: str) -> Network:
             duplicate entries, or an invalid configuration.
     """
 
-    nb_drones = 0
+    nb_drones: int | None = None
     start_hub: Hub | None = None
     end_hub: Hub | None = None
     hubs: dict[str, Hub] = {}
@@ -303,7 +308,7 @@ def read_map_file(file_name: str) -> Network:
                         raise MapParsingError(
                             f"Duplicate configuration key: {MapKey.NB_DRONES}."
                         )
-                    nb_drones = _parse_nb_drones(line)
+                    nb_drones = int(_parse_nb_drones(line))
 
                 elif key in (MapKey.START_HUB, MapKey.END_HUB, MapKey.HUB):
                     if connections:
@@ -342,10 +347,12 @@ def read_map_file(file_name: str) -> Network:
                     connections.append(_parse_connection(value))
                 else:
                     raise MapParsingError(f"Unknown configuration key: {key}.")
+            if nb_drones is None:
+                raise MapParsingError("Missing nb_drones configuration.")
             if start_hub is None or end_hub is None:
                 raise MapParsingError("Missed start_hub or end_hub.")
             return Network(
-                nb_drones=int(nb_drones),
+                nb_drones=nb_drones,
                 start_hub=start_hub,
                 end_hub=end_hub,
                 hubs=hubs,
